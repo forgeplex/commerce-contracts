@@ -1,0 +1,60 @@
+# catalog 域对外的内部服务合约（事实源；生成物不得手改）。
+# 调用方在当前租户上下文里调用（callctx 里的 TenantID 由组合根从已验签令牌重建），
+# 请求不携带租户；只能读到当前租户自己的商品。
+# 生成器限制命名 DTO 只嵌套一层，所以返回值是扁平的四个列表，用 id 关联。
+version: 1
+package: catalogv1
+system: catalog
+types:
+  - name: ListingProduct
+    fields:
+      - { name: product_id, type: string }
+      - { name: version, type: int64 }
+      - { name: sku_code, type: string }
+      - { name: title, type: string }
+      - { name: title_en, type: string }
+      - { name: description_en, type: string }
+      - { name: bullets_en, type: "[]string" }
+      # 规格维度名（0–2 个，有序），SKU 的 spec_values 与之一一对应。
+      - { name: spec_dimensions, type: "[]string" }
+      - { name: updated_at, type: timestamp }
+  - name: ListingSku
+    fields:
+      - { name: sku_id, type: string }
+      - { name: sku_code, type: string }
+      - { name: spec_values, type: "[]string" }
+      - { name: weight_g, type: int64 }
+      - { name: length_mm, type: int64 }
+      - { name: width_mm, type: int64 }
+      - { name: height_mm, type: int64 }
+  - name: ListingImage
+    fields:
+      - { name: image_id, type: string }
+      # 空表示通用图（全部 SKU 共用）。
+      - { name: sku_id, type: string }
+      - { name: url, type: string }
+      - { name: sort_order, type: int64 }
+      - { name: width_px, type: int64 }
+      - { name: height_px, type: int64 }
+      - { name: bytes, type: int64 }
+  - name: ListingPrice
+    fields:
+      - { name: sku_id, type: string }
+      - { name: site, type: string }
+      - { name: currency, type: string }
+      - { name: amount, type: decimal }
+      # 划线价；没有时 has_list_amount=false。
+      - { name: list_amount, type: decimal }
+      - { name: has_list_amount, type: bool }
+methods:
+  - name: GetListing
+    path: /get-listing
+    doc: 读取当前租户一个商品的上架资料（英文内容、规格、SKU、图片、包装尺寸、站点售价）；商品不存在或不属于当前租户返回 CATALOG_PRODUCT_NOT_FOUND。
+    idempotent: true
+    request:
+      - { name: product_id, type: string, required: true }
+    response:
+      - { name: product, type: ListingProduct }
+      - { name: skus, type: "[]ListingSku" }
+      - { name: images, type: "[]ListingImage" }
+      - { name: prices, type: "[]ListingPrice" }
